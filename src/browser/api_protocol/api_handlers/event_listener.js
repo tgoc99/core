@@ -19,7 +19,6 @@ limitations under the License.
 
 // npm modules
 let _ = require('underscore');
-import * as log from '../../log';
 
 // local modules
 let apiProtocolBase = require('./api_protocol_base.js');
@@ -101,7 +100,6 @@ function EventListenerApiHandler() {
         'frame': {
             name: 'frame',
             subscribe: function(identity, type, payload, cb) {
-                log.writeToLog(1, `**** event_listener l104 args are ${identity}${type}${JSON.stringify(payload)}${cb}`, true);
 
                 const {
                     uuid,

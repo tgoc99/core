@@ -294,6 +294,24 @@ exports.System = {
     getDeviceId: function() {
         return electronApp.getHostToken();
     },
+    getEntityInfo: function(identity, callback, errCallback) {
+        let response = 'unknown';
+        if (!identity.name) {
+            response = ExternalApplication.getExternalConnectionByUuid(identity.uuid) ? 'external connection' : 'unknown';
+        } else {
+            let app = coreState.getAppByUuid(identity.uuid);
+            app.children.some(win => {
+                if (win.openfinWindow && win.openfinWindow.name === identity.name) {
+                    response = 'window';
+                    return true;
+                } else if (win.openfinWindow.frames[identity.name]) {
+                    response = 'frame';
+                    return true;
+                }
+            });
+        }
+        callback(response);
+    },
     getEnvironmentVariable: function(varsToExpand) {
         if (Array.isArray(varsToExpand)) {
             return varsToExpand.reduce(function(result, envVar) {

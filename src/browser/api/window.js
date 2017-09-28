@@ -1035,7 +1035,9 @@ Window.focus = function(identity) {
 };
 
 Window.getAllFrames = function(identity) {
-    return 'window.getAllFrames in api/window from core - FILL ME IN>>>>>>>>>>';
+    let openfinWindow = coreState.getWindowByUuidName(identity.uuid, identity.name);
+    // Valid window with no frames returns an empty obj
+    return openfinWindow ? openfinWindow.frames || undefined : undefined;
 };
 
 Window.getBounds = function(identity) {

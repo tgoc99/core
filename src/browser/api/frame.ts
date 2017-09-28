@@ -8,6 +8,7 @@ Please contact OpenFin Inc. at sales@openfin.co to obtain a Commercial License.
 import ofEvents from '../of_events';
 import { Identity } from '../../shapes';
 import route from '../../common/route';
+import * as Shapes from '../../shapes';
 const coreState = require('../core_state');
 
 
@@ -54,7 +55,22 @@ export module Frame {
         ofEvents.removeListener(route.frame(type, browserFrame.id), listener);
     }
 
-    export function getInfo (Frame: Identity) {
-        return 'getInfo in api/frame from core - FILL ME IN>>>>>>>>>';
+    export function getInfo (identity: Identity) {
+        return 'getInfo in api/identity from core - FILL ME IN>>>>>>>>>';
+    }
+
+    export function getParentWindow (identity: Identity) {
+        const app: Shapes.App = coreState.getAppByUuid(identity.uuid);
+        const parentWindow: Shapes.Window | undefined = app.children.find((win: Shapes.Window) =>
+            win.openfinWindow &&
+            win.openfinWindow.frames &&
+            win.openfinWindow.frames[identity.name]
+        );
+
+        if (!parentWindow || !parentWindow.openfinWindow) {
+            return undefined;
+        }
+        const { uuid, name } = parentWindow.openfinWindow;
+        return { uuid, name };
     }
 }
