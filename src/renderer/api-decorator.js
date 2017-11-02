@@ -471,8 +471,8 @@ limitations under the License.
 
         const convertedOpts = convertOptionsToElectronSync(options);
         const { preload } = 'preload' in convertedOpts ? convertedOpts : winOpts;
-
-        if (!(preload && preload.length)) {
+        console.log('before d/l pls - options', options);
+        if (!(preload && preload.length) || options.name.includes('Notifications') || options.name === 'queueCounter') {
             proceed(); // short-circuit preload scripts fetch
         } else {
             const preloadScriptsPayload = {
@@ -484,6 +484,8 @@ limitations under the License.
         }
 
         function proceed() {
+            console.log('in proceed - options', options);
+            
             // PLEASE NOTE: Must stringify options object
             ipc.send(renderFrameId, 'add-child-window-request', responseChannel, frameName, webContentsId,
                 requestId, JSON.stringify(convertedOpts));
@@ -552,6 +554,13 @@ limitations under the License.
      */
     ipc.once(`post-api-injection-${renderFrameId}`, () => {
         const winOpts = getCachedWindowOptionsSync();
+
+        console.log('renderrer inopts', winOpts);
+        if (winOpts.name.includes('Notifications') || winOpts.name.includes('queueCounter')) {
+            console.log('bypassing PRELOADS');
+            return;
+        }
+
         const identity = {
             uuid: winOpts.uuid,
             name: winOpts.name
