@@ -27,6 +27,7 @@ const apisToIgnore = new Set([
     'is-application-running',
     'join-window-group',
     'leave-window-group',
+    'register-window-name',
     //TODO: we do not check run for .NET, the adapter will create an application then run it without waiting for the ack.
     'run-application',
     // Window
