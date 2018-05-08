@@ -55,8 +55,11 @@ function InterApplicationBusApiHandler() {
             subScriptionTypes.MESSAGE
         ];
 
-        InterApplicationBus.emitSubscriberRemoved(identity, payload);
         apiProtocolBase.removeSubscription(...subscriptionArgs);
+        if (apiProtocolBase.subscriptionExists(...subscriptionArgs)) {
+            //if it still has the subscription, it didn't emit subscriber removed event.
+            InterApplicationBus.emitSubscriberRemoved(identity, payload);
+        }
 
         ack(successAck);
     }
@@ -107,7 +110,9 @@ function InterApplicationBusApiHandler() {
                 apiProtocolBase.removeSubscription(...subscriptionArgs);
             });
         } else {
-            const wildcardPayload = Object.assign({ sourceUuid: '*', sourceWindowName: '*' }, payload);
+            const wildcardPayload = Object.assign({}, payload);
+            wildcardPayload.sourceUuid = '*';
+            wildcardPayload.sourceWindowName = '*';
             const subscriptionObj = InterApplicationBus.subscribe(identity, wildcardPayload, subscriptionCallback);
             InterApplicationBus.emitSubscriberAdded(identity, payload);
 
