@@ -216,7 +216,6 @@ export const meshJoinWindowGroupMiddleware = async (msg: MessagePackage, next: (
         const targetGroup = Window.getGroup(grouping);
         if (targetGroup && targetGroup.length) {
             targetGroup.forEach((win: Identity) => {
-                // const ofWindow = coreState.getWindowByUuidName(grouping.uuid, grouping.name);
                 const ofWindow: OpenFinWindow|undefined = coreState.getWindowByUuidName(win.uuid, win.name);
                 if (ofWindow && ofWindow._options.meshJoinGroupIdentity) {
                     // there is an external window; delegate new window parent to same app
