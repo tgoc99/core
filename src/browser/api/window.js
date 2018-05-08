@@ -57,6 +57,7 @@ import {
     DEFAULT_RESIZE_REGION_BOTTOM_RIGHT_CORNER,
     DEFAULT_RESIZE_SIDES
 } from '../../shapes';
+import { default as connectionManager } from '../connection_manager';
 
 const subscriptionManager = new SubscriptionManager();
 const isWin32 = process.platform === 'win32';
@@ -1214,13 +1215,45 @@ Window.getBounds = function(identity) {
 
 
 Window.getGroup = function(identity) {
-    let browserWindow = getElectronBrowserWindow(identity);
+    let openfinWindow = coreState.getWindowByUuidName(identity.uuid, identity.name);
+
+    if (openfinWindow && openfinWindow.meshGroupUuid) {
+        const { meshGroupUuid } = openfinWindow;
+        return connectionManager.resolveIdentity({ uuid: meshGroupUuid })
+            .then(id => {
+                const { uuid, name } = openfinWindow;
+                const getGroupMessage = {
+                    action: 'get-window-group',
+                    payload: {
+                        uuid,
+                        name,
+                        crossApp: true
+                    }
+                };
+                return id.runtime.fin.System.executeOnRemote({ uuid, name }, getGroupMessage)
+                    .then(res => {
+                        return res;
+                    });
+            }).catch((e) => {
+                //Uuid was not found in the mesh
+                openfinWindow.meshGroupUuid = null;
+                return [];
+            });
+    }
+
+    if (!openfinWindow) {
+        const meshWindow = WindowGroups.getMeshWindow(identity);
+        if (meshWindow) {
+            openfinWindow = coreState.getWindowByUuidName(meshWindow.uuid, meshWindow.name);
+        }
+    }
+
+    let browserWindow = openfinWindow && openfinWindow.browserWindow;
 
     if (!browserWindow) {
         return [];
     }
 
-    let openfinWindow = Window.wrap(identity.uuid, identity.name);
     return WindowGroups.getGroup(openfinWindow.groupUuid);
 };
 

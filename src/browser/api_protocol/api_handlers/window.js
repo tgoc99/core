@@ -406,14 +406,26 @@ function getWindowGroup(identity, message, ack) {
 
     // NOTE: the Window API returns a wrapped window with 'name' as a member,
     // while the adaptor expects it to be 'windowName'
-    dataAck.data = _.map(Window.getGroup(windowIdentity), (window) => {
-        if (payload.crossApp === true) {
-            return { uuid: window.uuid, name: window.name, windowName: window.name };
-        } else {
-            return window.name; // backwards compatible
+    const windowGroup = Promise.resolve(Window.getGroup(windowIdentity));
+    windowGroup.then(group => {
+        if (group && group.data) {
+            dataAck.data = group.data;
+            ack(dataAck);
+            return;
         }
+        dataAck.data = _.map(group, (window) => {
+            if (window && window._options && window._options.meshJoinGroupIdentity) {
+                const { meshJoinGroupIdentity } = window._options;
+                return { uuid: meshJoinGroupIdentity.uuid, name: meshJoinGroupIdentity.name, windowName: meshJoinGroupIdentity.name };
+            }
+            if (payload.crossApp === true) {
+                return { uuid: window.uuid, name: window.name, windowName: window.name };
+            } else {
+                return window.name; // backwards compatible
+            }
+        });
+        ack(dataAck);
     });
-    ack(dataAck);
 }
 
 function getWindowBounds(identity, message, ack) {

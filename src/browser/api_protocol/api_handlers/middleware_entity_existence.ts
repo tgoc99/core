@@ -36,6 +36,7 @@ const apisToIgnore = new Set([
 if (coreState.argo && coreState.argo['mesh-join-group']) {
     apisToIgnore.add('join-window-group');
     apisToIgnore.add('leave-window-group');
+    apisToIgnore.add('get-window-group');
 }
 
 /**
