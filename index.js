@@ -364,6 +364,17 @@ app.on('ready', function() {
     });
 
     try {
+
+        electron.session.defaultSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
+            // log.writeToLog(1, `*****wc ${JSON.stringify(webContents)}`, true);
+            log.writeToLog(1, `*****perm ${JSON.stringify(permission)}`, true);
+            log.writeToLog(1, `*****deets ${JSON.stringify(details)}`, true);
+
+            // SEE showErrorBox in common/errors
+    
+            callback(true);
+        });
+
         electron.session.defaultSession.on('will-download', (event, item, webContents) => {
             try {
                 const { uuid, name } = webContents.browserWindowOptions;
