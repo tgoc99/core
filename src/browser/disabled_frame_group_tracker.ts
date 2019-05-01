@@ -128,12 +128,21 @@ async function handleApiMove(win: OpenFinWindow, delta: RectangleBase) {
     return leader.rect;
 }
 
+function restoreWindow({browserWindow}: OpenFinWindow) {
+    if (browserWindow.isMaximized()) {
+        browserWindow.unmaximize();
+    } else if (browserWindow.isMinimized()) {
+        browserWindow.restore();
+    }
+}
+
 function handleBatchedMove(moves: Move[], bringWinsToFront: boolean = false) {
     if (isWin32) {
         const { flag: { noZorder, noSize, noActivate } } = WindowTransaction;
         const flags = noZorder + noActivate;
         const wt = new WindowTransaction.Transaction(0);
         moves.forEach(({ ofWin, rect, offset }) => {
+            restoreWindow(ofWin);
             const hwnd = parseInt(ofWin.browserWindow.nativeId, 16);
             wt.setWindowPos(hwnd, { ...getTransactionBounds(rect, offset), flags });
             if (bringWinsToFront) { ofWin.browserWindow.bringToFront(); }
@@ -141,6 +150,7 @@ function handleBatchedMove(moves: Move[], bringWinsToFront: boolean = false) {
         wt.commit();
     } else {
         moves.forEach(({ ofWin, rect, offset }) => {
+            restoreWindow(ofWin);
             ofWin.browserWindow.setBounds(applyOffset(rect, offset));
             if (bringWinsToFront) { ofWin.browserWindow.bringToFront(); }
         });
