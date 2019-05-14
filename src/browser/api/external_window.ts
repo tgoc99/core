@@ -11,6 +11,7 @@ import InjectionBus from '../transports/injection_bus';
 import ofEvents from '../of_events';
 import route from '../../common/route';
 import WindowGroups, { GroupChangedEvent, GroupEvent } from '../window_groups';
+import { RectangleBase } from '../rectangle';
 
 electronApp.on('ready', () => {
   subToGlobalWinEventHooks();
@@ -338,23 +339,17 @@ function subscribeToWinEventHooks(externalWindow: Shapes.ExternalWindow): void {
   const key = getKey(externalWindow);
   const winEventHooks = new WinEventHookEmitter({ pid });
   winEventHooksEmitters.set(key, winEventHooks);
-
+  let isResize = false;
+  let cachedBounds: RectangleBase;
   let previousNativeWindowInfo = electronApp.getNativeWindowInfoForNativeId(nativeId);
-
-  const listener = (
-    parser: (nativeWindowInfo: Shapes.NativeWindowInfo) => void,
-    sender: EventEmitter,
-    rawNativeWindowInfo: Shapes.RawNativeWindowInfo,
-    timestamp: number
-  ): void => {
+  const listener = ( parser: (nativeWindowInfo: Shapes.NativeWindowInfo) => void, sender: EventEmitter,
+    rawNativeWindowInfo: Shapes.RawNativeWindowInfo, timestamp: number): void => {
     const nativeWindowInfo = extendNativeWindowInfo(rawNativeWindowInfo);
-
     // Since we are subscribing to a process, we are only interested in a
     // specific window.
     if (nativeWindowInfo.uuid !== nativeId) {
       return;
     }
-
     parser(nativeWindowInfo);
     previousNativeWindowInfo = nativeWindowInfo;
   };
@@ -376,13 +371,13 @@ function subscribeToWinEventHooks(externalWindow: Shapes.ExternalWindow): void {
   }));
 
   winEventHooks.on('EVENT_SYSTEM_MOVESIZESTART', listener.bind(null, (nativeWindowInfo: Shapes.NativeWindowInfo) => {
+    isResize = false;
     if (!externalWindow._userMovement) {
       return;
     }
 
-    const {
-      frame, height, left, top, width, windowState, x, y
-    } = getEventData(nativeWindowInfo);
+    const { frame, height, left, top, width, windowState, x, y } = getEventData(nativeWindowInfo);
+    cachedBounds = { height, width, x, y };
 
     externalWindow.emit('begin-user-bounds-changing', {
       frame, height, left, top, width, windowState, x, y
@@ -393,20 +388,13 @@ function subscribeToWinEventHooks(externalWindow: Shapes.ExternalWindow): void {
     if (!externalWindow._userMovement) {
       return;
     }
+    cachedBounds = null;
+    isResize = false;
+    const { changeType, deferred, frame, height, left, reason, top, width, windowState, x, y } = getEventData(nativeWindowInfo);
 
-    const {
-      changeType, deferred, frame, height, left, reason, top, width, windowState, x, y
-    } = getEventData(nativeWindowInfo);
-
-    externalWindow.emit('end-user-bounds-changing', {
-      frame, height, left, top, width, windowState, x, y
-    });
-
-    externalWindow.emit('bounds-changed', {
-      changeType, deferred, height, left, reason, top, width
-    });
+    externalWindow.emit('end-user-bounds-changing', { frame, height, left, top, width, windowState, x, y });
+    externalWindow.emit('bounds-changed', { changeType, deferred, height, left, reason, top, width });
   }));
-
   winEventHooks.on('EVENT_OBJECT_LOCATIONCHANGE', listener.bind(null, (nativeWindowInfo: Shapes.NativeWindowInfo) => {
     if (nativeWindowInfo.maximized && !previousNativeWindowInfo.maximized) {
       externalWindow.emit('maximized');
@@ -421,13 +409,14 @@ function subscribeToWinEventHooks(externalWindow: Shapes.ExternalWindow): void {
       // not being restored first automatically like for a maximized window,
       // and so the event is being triggerred even though the window's bounds
       // are not changing.
-      const {
-        changeType, deferred, height, left, reason, top, width
-      } = getEventData(nativeWindowInfo);
+      const { deferred, height, left, reason, top, width } = getEventData(nativeWindowInfo);
 
-      externalWindow.emit('bounds-changing', {
-        changeType, deferred, height, left, reason, top, width
-      });
+      if (!isResize && cachedBounds && (width !== cachedBounds.width || height !== cachedBounds.height)) {
+        isResize = true;
+      }
+      const changeType = isResize ? 1 : 0;
+
+      externalWindow.emit('group-bounds-changing', { changeType, deferred, height, left, reason, top, width });
     }
   }));
 }
@@ -495,7 +484,7 @@ async function subscribeToInjectionEvents(externalWindow: Shapes.ExternalWindow)
     const routeName = route.externalWindow(OF_EVENT_FROM_WINDOWS_MESSAGE.WM_SIZING, uuid, name);
     if (!userMovement) {
       ofEvents.emit(routeName, { x, y, width, height });
-      externalWindow.emit('disabled-movement-bounds-changing', {
+      externalWindow.emit('group2-bounds-changing', {
         changeType, deferred, height, left, top, width
       });
     }
@@ -506,7 +495,7 @@ async function subscribeToInjectionEvents(externalWindow: Shapes.ExternalWindow)
     const routeName = route.externalWindow(OF_EVENT_FROM_WINDOWS_MESSAGE.WM_MOVING, uuid, name);
     if (!userMovement) {
       ofEvents.emit(routeName);
-      externalWindow.emit('disabled-movement-bounds-changing', {
+      externalWindow.emit('group2-bounds-changing', {
         changeType, deferred, height, left, top, width
       });
     }

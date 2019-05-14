@@ -6,6 +6,7 @@ const WindowTransaction = require('electron').windowTransaction;
 import { getRuntimeProxyWindow } from './window_groups_runtime_proxy';
 import { RectangleBase, Rectangle } from './rectangle';
 import { restore } from './api/native_window';
+import { getExternalWindow } from './api/external_window';
 import {
     moveFromOpenFinWindow,
     zeroDelta,
@@ -67,12 +68,13 @@ export function updateGroupedWindowBounds(win: GroupWindow, delta: Partial<Recta
     const shift = { ...zeroDelta, ...delta };
     return handleApiMove(win, shift);
 }
-function getLeaderDelta(win: GroupWindow, bounds: Partial<RectangleBase>): RectangleBase {
+function getLeaderDelta(win: GroupWindow, bounds: Partial<RectangleBase>, startBounds?: false|RectangleBase): RectangleBase {
     const { offset, rect } = moveFromOpenFinWindow(win);
+    const startRect = startBounds ? Rectangle.CREATE_FROM_BOUNDS(startBounds) : rect;
     // Could be partial bounds from an API call
     const fullBounds = { ...applyOffset(rect, offset), ...bounds };
     const end = normalizeExternalBounds(fullBounds, offset); //Corrected
-    return rect.delta(end);
+    return startRect.delta(end);
 }
 export function setNewGroupedWindowBounds(win: GroupWindow, partialBounds: Partial<RectangleBase>) {
     const delta = getLeaderDelta(win, partialBounds);
@@ -92,7 +94,7 @@ function handleApiMove(win: GroupWindow, delta: RectangleBase) {
             ? ChangeType.POSITION_AND_SIZE
             : ChangeType.SIZE
         : ChangeType.POSITION;
-    const moves = handleBoundsChanging(win, applyOffset(newBounds, offset), changeType);
+    const moves = handleBoundsChanging(win, delta, changeType);
     const { leader, otherWindows } = moves.reduce((accum: MoveAccumulator, move) => {
         move.ofWin === win ? accum.leader = move : accum.otherWindows.push(move);
         return accum;
@@ -132,10 +134,9 @@ const makeTranslate = (delta: RectangleBase) => ({ ofWin, rect, offset }: Move):
 function getInitialPositions(win: GroupWindow) {
     return WindowGroups.getGroup(win.groupUuid).map(moveFromOpenFinWindow);
 }
-function handleBoundsChanging(win: GroupWindow, rawBounds: RectangleBase, changeType: ChangeType): Move[] {
+function handleBoundsChanging(win: GroupWindow, delta: RectangleBase, changeType: ChangeType): Move[] {
     const initialPositions: Move[] = getInitialPositions(win);
     let moves = initialPositions;
-    const delta = getLeaderDelta(win, rawBounds);
     switch (changeType) {
         case ChangeType.POSITION:
             moves = handleMoveOnly(delta, initialPositions);
@@ -202,19 +203,35 @@ export function addWindowToGroup(win: GroupWindow) {
     const scaleFactor = MonitorInfo.getInfo().deviceScaleFactor;
     let moved = new Set<GroupWindow>();
     let boundsChanging = false;
+    let cachedExternalRect: RectangleBase;
+    let nativeMover: string;
+    if (win.isExternalWindow) {
+        // REMOVE THIS STUFF ONCE WE HAVE DISABLED FRAME
+        cachedExternalRect = moveFromOpenFinWindow(win).rect;
+    }
 
     const genericListener = (e: any, rawPayloadBounds: RectangleBase, changeType: ChangeType) => {
         try {
+            if (win.isExternalWindow && !(nativeMover === win.uuid)) {
+                return;
+            }
             e.preventDefault();
             Object.keys(rawPayloadBounds).map((key: keyof RectangleBase) => {
                 rawPayloadBounds[key] = rawPayloadBounds[key] / scaleFactor;
             });
+            const delta = getLeaderDelta(win, rawPayloadBounds, cachedExternalRect);
+            let moves = handleBoundsChanging(win, delta, changeType);
+            if (nativeMover) {
+                // REMOVE THIS STUFF ONCE WE HAVE DISABLED FRAME
+                moves = moves.filter(({ofWin}) => !(ofWin.uuid === win.uuid));
+                cachedExternalRect = JSON.parse(JSON.stringify(rawPayloadBounds));
+            }
+            handleBatchedMove(moves, changeType, true);
+            moves.forEach(({ofWin}) => moved.add(ofWin));
+
             if (!boundsChanging) {
                 boundsChanging = true;
-                moved = new Set<GroupWindow>();
-                const moves = handleBoundsChanging(win, rawPayloadBounds, changeType);
-                handleBatchedMove(moves, changeType, true);
-                moves.forEach(({ofWin}) => moved.add(ofWin));
+                // setup bounds-changed event to fire at the end of user movement
                 win.browserWindow.once('end-user-bounds-change', () => {
                     boundsChanging = false;
                     moved.forEach((movedWin) => {
@@ -225,11 +242,9 @@ export function addWindowToGroup(win: GroupWindow) {
                             emitChange('bounds-changed', endPosition, changeType, 'group');
                         }
                     });
+                    moved = new Set<GroupWindow>();
                 });
             } else {
-                const moves = handleBoundsChanging(win, rawPayloadBounds, changeType);
-                handleBatchedMove(moves, changeType, true);
-                moves.forEach((move) => moved.add(move.ofWin));
                 // bounds-changing is not emitted for the leader, but is for the other windows
                 const leaderMove = moves.find(({ofWin}) => ofWin.uuid === win.uuid && ofWin.name === win.name);
                 emitChange('bounds-changing', leaderMove, changeType, 'self');
@@ -238,14 +253,39 @@ export function addWindowToGroup(win: GroupWindow) {
             writeToLog('error', error);
         }
     };
-    const moveListener = (e: any, bounds: RectangleBase) => genericListener(e, bounds, 0);
-    const resizeListener = (e: any, bounds: RectangleBase) => genericListener(e, bounds, 1);
-    const restoreListener = () => WindowGroups.getGroup(win.groupUuid).forEach(w => restore(w.browserWindow));
+    if (!win.isExternalWindow) {
+        const moveListener = (e: any, bounds: RectangleBase) => genericListener(e, bounds, 0);
+        const resizeListener = (e: any, bounds: RectangleBase) => genericListener(e, bounds, 1);
+        const restoreListener = () => WindowGroups.getGroup(win.groupUuid).forEach(w => restore(w.browserWindow));
 
-    win.browserWindow.on('will-move', moveListener);
-    win.browserWindow.on('will-resize', resizeListener);
-    win.browserWindow.on('begin-user-bounds-change', restoreListener);
-    listenerCache.set(win.browserWindow.nativeId, [moveListener, resizeListener, restoreListener]);
+        win.browserWindow.on('will-move', moveListener);
+        win.browserWindow.on('will-resize', resizeListener);
+        win.browserWindow.on('begin-user-bounds-change', restoreListener);
+        listenerCache.set(win.browserWindow.nativeId, [moveListener, resizeListener, restoreListener]);
+    } else {
+        const ew = getExternalWindow(win);
+        ew.on('begin-user-bounds-changing', (b) => {
+            b.x = b.left;
+            b.y = b.top;
+            cachedExternalRect = b;
+            nativeMover = win.uuid;
+        });
+        ew.on('end-user-bounds-changing', (b) => {
+            b.x = b.left;
+            b.y = b.top;
+            cachedExternalRect = b;
+            nativeMover = null;
+            moved = new Set<GroupWindow>();
+        });
+        ew.on('group-bounds-changing', (b) => {
+            b.x = b.left;
+            b.y = b.top;
+            // NEED TO GET REAL DATA ON CHANGETYPE.... (SEE EXT WINDOW GETEVENTDATA FN)
+            // tslint:disable-next-line
+            genericListener({preventDefault: () => {}}, b, b.changeType);
+        });
+    }
+
 }
 
 export function removeWindowFromGroup({browserWindow}: GroupWindow) {
