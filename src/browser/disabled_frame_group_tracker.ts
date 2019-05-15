@@ -1,4 +1,4 @@
-import { OpenFinWindow, GroupWindow } from '../shapes';
+import { GroupWindow } from '../shapes';
 import of_events from './of_events';
 import route from '../common/route';
 import WindowGroups from './window_groups';
@@ -221,7 +221,7 @@ export function addWindowToGroup(win: GroupWindow) {
             });
             const delta = getLeaderDelta(win, rawPayloadBounds, cachedExternalRect);
             let moves = handleBoundsChanging(win, delta, changeType);
-            if (nativeMover) {
+            if (nativeMover && changeType === 0) {
                 // REMOVE THIS STUFF ONCE WE HAVE DISABLED FRAME
                 moves = moves.filter(({ofWin}) => !(ofWin.uuid === win.uuid));
                 cachedExternalRect = JSON.parse(JSON.stringify(rawPayloadBounds));
@@ -277,13 +277,14 @@ export function addWindowToGroup(win: GroupWindow) {
             nativeMover = null;
             moved = new Set<GroupWindow>();
         });
-        ew.on('group-bounds-changing', (b) => {
-            b.x = b.left;
-            b.y = b.top;
-            // NEED TO GET REAL DATA ON CHANGETYPE.... (SEE EXT WINDOW GETEVENTDATA FN)
-            // tslint:disable-next-line
-            genericListener({preventDefault: () => {}}, b, b.changeType);
-        });
+        // ew.on('group-bounds-changing', (b) => {
+        //     b.x = b.left;
+        //     b.y = b.top;
+        //     // NEED TO GET REAL DATA ON CHANGETYPE.... (SEE EXT WINDOW GETEVENTDATA FN)
+        //     // tslint:disable-next-line
+        //     genericListener({preventDefault: () => {}}, b, b.changeType);
+        // });
+        // ew.on('disabled-movement-bounds-changing')
     }
 
 }
