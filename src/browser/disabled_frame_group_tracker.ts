@@ -1,4 +1,4 @@
-import { OpenFinWindow, GroupWindow } from '../shapes';
+import { GroupWindow } from '../shapes';
 import of_events from './of_events';
 import route from '../common/route';
 import WindowGroups from './window_groups';
@@ -15,8 +15,11 @@ import {
     applyOffset
 } from './normalized_rectangle';
 import { writeToLog } from './log';
+import { getExternalWindow } from './api/external_window';
 
 const isWin32 = process.platform === 'win32';
+    // Use disabled frame bounds changing events for mac os and for external native windows
+const usesDisabledFrameEvents = (win: GroupWindow) => win.isExternalWindow || !isWin32;
 enum ChangeType {
     POSITION = 0,
     SIZE = 1,
@@ -115,7 +118,8 @@ function handleBatchedMove(moves: Move[], changeType: ChangeType, bringWinsToFro
         const wt = new WindowTransaction.Transaction(0);
         moves.forEach(({ ofWin, rect, offset }) => {
             const hwnd = parseInt(ofWin.browserWindow.nativeId, 16);
-            wt.setWindowPos(hwnd, { ...getTransactionBounds(rect, offset), flags });
+            // @ts-ignore
+            wt.setWindowPos(hwnd, { ...getTransactionBounds(rect, offset), flags, scale: false });
             if (bringWinsToFront) { ofWin.browserWindow.bringToFront(); }
         });
         wt.commit();
@@ -134,7 +138,7 @@ function getInitialPositions(win: GroupWindow) {
 }
 function handleBoundsChanging(win: GroupWindow, rawBounds: RectangleBase, changeType: ChangeType): Move[] {
     const initialPositions: Move[] = getInitialPositions(win);
-    let moves = initialPositions;
+    let moves: Move[];
     const delta = getLeaderDelta(win, rawBounds);
     switch (changeType) {
         case ChangeType.POSITION:
@@ -199,46 +203,57 @@ function handleMoveOnly(delta: RectangleBase, initialPositions: Move[]) {
 
 export function addWindowToGroup(win: GroupWindow) {
     const MonitorInfo = require('./monitor_info.js');
-    const scaleFactor = MonitorInfo.getInfo().deviceScaleFactor;
+    // const scaleFactor = MonitorInfo.getInfo().deviceScaleFactor;
     let moved = new Set<GroupWindow>();
     let boundsChanging = false;
     let interval: any;
     let payloadCache: RectangleBase[] = [];
-    if (win.isExternalWindow) {
+    if (usesDisabledFrameEvents(win)) {
         win.browserWindow.setUserMovementEnabled(false);
+    } else {
+        win.externalWindow = getExternalWindow({ uuid: win.browserWindow.nativeId });
     }
 
     const genericListener = (e: any, rawPayloadBounds: RectangleBase, changeType: ChangeType) => {
         try {
             e.preventDefault();
-            Object.keys(rawPayloadBounds).map((key: keyof RectangleBase) => {
-                rawPayloadBounds[key] = rawPayloadBounds[key] / scaleFactor;
-            });
+            // Object.keys(rawPayloadBounds).map((key: keyof RectangleBase) => {
+            //     rawPayloadBounds[key] = rawPayloadBounds[key] / scaleFactor;
+            // });
+            const b = usesDisabledFrameEvents(win) ? win.browserWindow.getBounds() : win.externalWindow.getBounds();
+
+            writeToLog('error', `***** payload bounds: ${JSON.stringify(rawPayloadBounds)}; getbounds ext: ${JSON.stringify(b)}`);
+
             const moves = handleBoundsChanging(win, rawPayloadBounds, changeType);
             handleBatchedMove(moves, changeType, true);
+            // Keep track of which windows have moved in order to emit events
             moves.forEach(({ofWin}) => moved.add(ofWin));
             if (!boundsChanging) {
                 boundsChanging = true;
-                    win.browserWindow.once('end-user-bounds-change', () => {
-                        boundsChanging = false;
-                        payloadCache = [];
-                        clearInterval(interval);
-                        interval = null;
-                        moved.forEach((movedWin) => {
-                            const isLeader = movedWin === win;
-                            if (!isLeader || win.isExternalWindow) {
-                                // bounds-changed is emitted for the leader, but not other windows
-                                const endPosition = moveFromOpenFinWindow(movedWin);
-                                emitChange('bounds-changed', endPosition, changeType, 'group');
-                            }
-                        });
-                        moved = new Set<GroupWindow>();
+                win.browserWindow.once('end-user-bounds-change', () => {
+                    // Emit expected events that aren't automatically emitted
+                    moved.forEach((movedWin) => {
+                        const isLeader = movedWin === win;
+                        if (!isLeader || win.isExternalWindow) {
+                            // bounds-changed is emitted for the leader, but not other windows
+                            const endPosition = moveFromOpenFinWindow(movedWin);
+                            emitChange('bounds-changed', endPosition, changeType, 'group');
+                        }
                     });
-                // }
+
+                    // Reset flags and map of moved windows
+                    moved = new Set<GroupWindow>();
+                    boundsChanging = false;
+                    payloadCache = [];
+                    clearInterval(interval);
+                    interval = null;
+                });
             } else {
                 // bounds-changing is not emitted for the leader, but is for the other windows
-                const leaderMove = moves.find(({ofWin}) => ofWin.uuid === win.uuid && ofWin.name === win.name);
-                emitChange('bounds-changing', leaderMove, changeType, 'self');
+                const leaderMove = moves[0] && moves.find(({ofWin}) => ofWin.uuid === win.uuid && ofWin.name === win.name);
+                if (leaderMove) {
+                    emitChange('bounds-changing', leaderMove, changeType, 'self');
+                }
             }
         } catch (error) {
             writeToLog('error', error);
@@ -250,7 +265,7 @@ export function addWindowToGroup(win: GroupWindow) {
 
     const nativeWindowChangingListener = (e: any, rawBounds: RectangleBase, changeType: ChangeType) => {
         payloadCache.push(rawBounds);
-        // Setup an interval to get around aero-shake issues
+        // Setup an interval to get around aero-shake issues in native
         if (!interval) {
             interval = setInterval(() => {
                 if (payloadCache.length) {
@@ -265,14 +280,14 @@ export function addWindowToGroup(win: GroupWindow) {
         }
     };
 
-    if (!win.isExternalWindow) {
+    if (usesDisabledFrameEvents(win)) {
+        win.browserWindow.on('disabled-frame-bounds-changing', nativeWindowChangingListener);
+        listenerCache.set(win.browserWindow.nativeId, [nativeWindowChangingListener]);
+    } else {
         win.browserWindow.on('will-move', moveListener);
         win.browserWindow.on('will-resize', resizeListener);
         win.browserWindow.on('begin-user-bounds-change', restoreListener);
         listenerCache.set(win.browserWindow.nativeId, [moveListener, resizeListener, restoreListener]);
-    } else {
-        win.browserWindow.on('disabled-frame-bounds-changing', nativeWindowChangingListener);
-        listenerCache.set(win.browserWindow.nativeId, [nativeWindowChangingListener]);
     }
 }
 
@@ -280,13 +295,13 @@ export function removeWindowFromGroup(win: GroupWindow) {
     const winId = win.browserWindow.nativeId;
     if (!win.browserWindow.isDestroyed()) {
         const listeners = listenerCache.get(winId);
-        if (listeners && !win.isExternalWindow) {
+        if (usesDisabledFrameEvents(win)) {
+            win.browserWindow.removeListener('disabled-frame-bounds-changing', listeners[0]);
+            win.browserWindow.setUserMovementEnabled(true);
+        } else {
             win.browserWindow.removeListener('will-move', listeners[0]);
             win.browserWindow.removeListener('will-resize', listeners[1]);
             win.browserWindow.removeListener('begin-user-bounds-change', listeners[2]);
-        } else {
-            win.browserWindow.removeListener('disabled-frame-bounds-changing', listeners[0]);
-            win.browserWindow.setUserMovementEnabled(true);
         }
     }
     listenerCache.delete(winId);

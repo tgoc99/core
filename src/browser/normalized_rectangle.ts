@@ -21,21 +21,22 @@ const framedOffset: Readonly<RectangleBase> = {
 };
 export const zeroDelta: Readonly<RectangleBase> = {x: 0, y: 0, height: 0, width: 0 };
 export function moveFromOpenFinWindow(ofWin: GroupWindow): Move {
-    const win = ofWin.browserWindow;
-    const bounds = win.getBounds();
-    const delta = isWin10 && win._options.frame
+    const browserWindow = ofWin.browserWindow;
+    // Use the external window to read scaled bounds for grouping purposes
+    const bounds = ofWin.isExternalWindow ? browserWindow.getBounds() : ofWin.externalWindow.getBounds();
+    const delta = isWin10 && browserWindow._options.frame
         ? framedOffset
         : zeroDelta;
-    const normalizedOptions = {...win._options};
+    const normalizedOptions = {...browserWindow._options};
     if (normalizedOptions.maxHeight === -1) {
         normalizedOptions.maxHeight = Number.MAX_SAFE_INTEGER;
     }
     if (normalizedOptions.maxWidth === -1) {
         normalizedOptions.maxWidth = Number.MAX_SAFE_INTEGER;
     }
-    if (win._options.frame) {
-        normalizedOptions.minWidth = Math.max(win._options.minWidth, 150);
-    } if (win._options.resizable === false) {
+    if (browserWindow._options.frame) {
+        normalizedOptions.minWidth = Math.max(browserWindow._options.minWidth, 150);
+    } if (browserWindow._options.resizable === false) {
         normalizedOptions.maxHeight = bounds.height;
         normalizedOptions.minHeight = bounds.height;
         normalizedOptions.maxWidth = bounds.width;
@@ -47,7 +48,7 @@ export function moveFromOpenFinWindow(ofWin: GroupWindow): Move {
     if (normalizedOptions.minWidth) { normalizedOptions.minWidth += delta.width; }
     return {
         ofWin,
-        rect: Rectangle.CREATE_FROM_BOUNDS(win.getBounds(), normalizedOptions).shift(delta),
+        rect: Rectangle.CREATE_FROM_BOUNDS(browserWindow.getBounds(), normalizedOptions).shift(delta),
         offset: negate(delta)
     };
 }

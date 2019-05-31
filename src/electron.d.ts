@@ -7934,6 +7934,7 @@ declare namespace Electron {
   }
 
   interface BrowserWindowConstructorOptions {
+    scale?: boolean;
     /**
      * Window's width in pixels. Default is 800.
      */

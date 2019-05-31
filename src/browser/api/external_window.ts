@@ -221,7 +221,7 @@ export function getExternalWindow(identity: Identity): Shapes.ExternalWindow {
   let externalWindow = externalWindows.get(uuid);
 
   if (!externalWindow) {
-    externalWindow = <Shapes.ExternalWindow>(new ExternalWindow({ hwnd: uuid }));
+    externalWindow = <Shapes.ExternalWindow>(new ExternalWindow({ hwnd: uuid, scale: true }));
 
     applyWindowGroupingStub(externalWindow);
     subscribeToInjectionEvents(externalWindow);
