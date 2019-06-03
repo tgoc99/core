@@ -48,7 +48,7 @@ export function moveFromOpenFinWindow(ofWin: GroupWindow): Move {
     if (normalizedOptions.minWidth) { normalizedOptions.minWidth += delta.width; }
     return {
         ofWin,
-        rect: Rectangle.CREATE_FROM_BOUNDS(browserWindow.getBounds(), normalizedOptions).shift(delta),
+        rect: Rectangle.CREATE_FROM_BOUNDS(bounds, normalizedOptions).shift(delta),
         offset: negate(delta)
     };
 }

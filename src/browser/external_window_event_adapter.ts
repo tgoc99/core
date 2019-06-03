@@ -138,7 +138,8 @@ export default class ExternalWindowEventAdapter {
         this._movingListener = () => {
             if (this._leftButtonDown) {
                 const { left, top } = MonitorInfo.getMousePosition();
-                const cursorCurr = { x: left, y: top };
+                const scaleFactor = MonitorInfo.getInfo().deviceScaleFactor;
+                const cursorCurr = { x: left * scaleFactor, y: top * scaleFactor };
 
                 this._changeType = 0;
 

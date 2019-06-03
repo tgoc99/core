@@ -196,8 +196,6 @@ function handleMoveOnly(delta: RectangleBase, initialPositions: Move[]) {
 }
 
 export function addWindowToGroup(win: GroupWindow) {
-    const MonitorInfo = require('./monitor_info.js');
-    // const scaleFactor = MonitorInfo.getInfo().deviceScaleFactor;
     let moved = new Set<GroupWindow>();
     let boundsChanging = false;
     let interval: any;
@@ -229,13 +227,6 @@ export function addWindowToGroup(win: GroupWindow) {
     const handleBoundsChanging = (e: any, rawPayloadBounds: RectangleBase, changeType: ChangeType) => {
         try {
             e.preventDefault();
-            // Object.keys(rawPayloadBounds).map((key: keyof RectangleBase) => {
-            //     rawPayloadBounds[key] = rawPayloadBounds[key] / scaleFactor;
-            // });
-            const b = usesDisabledFrameEvents(win) ? win.browserWindow.getBounds() : win.externalWindow.getBounds();
-
-            writeToLog('error', `***** payload bounds: ${JSON.stringify(rawPayloadBounds)}; getbounds ext: ${JSON.stringify(b)}`);
-
             const moves = generateWindowMoves(win, rawPayloadBounds, changeType);
             handleBatchedMove(moves, changeType, true);
             // Keep track of which windows have moved in order to emit events
@@ -246,10 +237,8 @@ export function addWindowToGroup(win: GroupWindow) {
                 win.browserWindow.once(endingEvent, handleEndBoundsChanging);
             } else if (moves.length) {
                 // bounds-changing is not emitted for the leader, but is for the other windows
-                const leaderMove = moves[0] && moves.find(({ofWin}) => ofWin.uuid === win.uuid && ofWin.name === win.name);
-                if (leaderMove) {
-                    emitChange('bounds-changing', leaderMove, changeType, 'self');
-                }
+                const leaderMove = moves.find(({ofWin}) => ofWin.uuid === win.uuid && ofWin.name === win.name);
+                emitChange('bounds-changing', leaderMove, changeType, 'self');
             }
         } catch (error) {
             writeToLog('error', error);
