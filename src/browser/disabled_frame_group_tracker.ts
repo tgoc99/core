@@ -205,7 +205,6 @@ export function addWindowToGroup(win: GroupWindow) {
     } else {
         win.externalWindow = getExternalWindow({ uuid: win.browserWindow.nativeId });
     }
-
     const handleEndBoundsChanging = (changeType: ChangeType) => {
         // Emit expected events that aren't automatically emitted
         moved.forEach((movedWin) => {
@@ -223,7 +222,6 @@ export function addWindowToGroup(win: GroupWindow) {
         interval = null;
         moved = new Set<GroupWindow>();
     };
-
     const handleBoundsChanging = (e: any, rawPayloadBounds: RectangleBase, changeType: ChangeType) => {
         try {
             e.preventDefault();
@@ -244,27 +242,37 @@ export function addWindowToGroup(win: GroupWindow) {
             writeToLog('error', error);
         }
     };
-    const moveListener = (e: any, bounds: RectangleBase) => handleBoundsChanging(e, bounds, 0);
-    const resizeListener = (e: any, bounds: RectangleBase) => handleBoundsChanging(e, bounds, 1);
-    const restoreListener = () => WindowGroups.getGroup(win.groupUuid).forEach(w => restore(w.browserWindow));
-
-    const disabledFrameListener = (e: any, rawBounds: RectangleBase, changeType: ChangeType) => {
-        payloadCache.push(rawBounds);
-        // Setup an interval to get around aero-shake issues in native
-        if (!interval) {
-            interval = setInterval(() => {
-                if (payloadCache.length) {
-                    const bounds = payloadCache.pop();
-                    changeType = changeType !== 2 ? changeType : 1;
-                    // tslint:disable-next-line:no-empty - need to mock prevent default
-                    handleBoundsChanging({preventDefault: () => {}}, bounds, changeType);
-                    payloadCache = [];
-                }
-            }, 30);
-            raiseEvent(win, 'begin-user-bounds-changing', { ...rawBounds, windowState: 'normal' });
+    const setupInterval = (changeType: ChangeType, raiseBeginEventBounds?: RectangleBase) => {
+        interval = setInterval(() => {
+            if (payloadCache.length) {
+                const bounds = payloadCache.pop();
+                // tslint:disable-next-line:no-empty - need to mock prevent default
+                handleBoundsChanging({preventDefault: () => {}}, bounds, changeType);
+                payloadCache = [];
+            }
+        }, 30);
+        if (raiseBeginEventBounds) {
+            raiseEvent(win, 'begin-user-bounds-changing', { ...raiseBeginEventBounds, windowState: 'normal' });
         }
     };
-
+    const moveListener = (e: any, rawBounds: RectangleBase) => handleBoundsChanging(e, rawBounds, ChangeType.POSITION);
+    const resizeListener = (e: any, rawBounds: RectangleBase) => {
+        e.preventDefault();
+        payloadCache.push(rawBounds);
+        // Setup an interval because resizing with a native window in the group is slow
+        if (!interval) {
+            setupInterval(ChangeType.SIZE);
+        }
+    };
+    const restoreListener = () => WindowGroups.getGroup(win.groupUuid).forEach(w => restore(w.browserWindow));
+    const disabledFrameListener = (e: any, rawBounds: RectangleBase, changeType: ChangeType) => {
+        payloadCache.push(rawBounds);
+        // Setup an interval to get around aero-shake issues in native external windows
+        if (!interval) {
+            changeType = changeType !== ChangeType.POSITION_AND_SIZE ? changeType : ChangeType.SIZE;
+            setupInterval(changeType, rawBounds);
+        }
+    };
     if (usesDisabledFrameEvents(win)) {
         win.browserWindow.on('disabled-frame-bounds-changing', disabledFrameListener);
         listenerCache.set(win.browserWindow.nativeId, [disabledFrameListener]);
