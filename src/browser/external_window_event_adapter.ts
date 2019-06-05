@@ -4,6 +4,7 @@ import ofEvents from './of_events';
 import route from '../common/route';
 
 let MonitorInfo: any;
+const isWin32 = process.platform === 'win32';
 electronApp.on('ready', () => {
     MonitorInfo = require('./monitor_info.js');
 });
@@ -139,7 +140,7 @@ export default class ExternalWindowEventAdapter {
             if (this._leftButtonDown) {
                 const { left, top } = MonitorInfo.getMousePosition();
                 const scaleFactor = MonitorInfo.getInfo().deviceScaleFactor;
-                const cursorCurr = { x: left * scaleFactor, y: top * scaleFactor };
+                const cursorCurr = isWin32 ? { x: left * scaleFactor, y: top * scaleFactor } : { x: left, y: top };
 
                 this._changeType = 0;
 

@@ -23,7 +23,7 @@ export const zeroDelta: Readonly<RectangleBase> = {x: 0, y: 0, height: 0, width:
 export function moveFromOpenFinWindow(ofWin: GroupWindow): Move {
     const browserWindow = ofWin.browserWindow;
     // Use the external window to read scaled bounds for grouping purposes
-    const bounds = ofWin.isExternalWindow ? browserWindow.getBounds() : ofWin.externalWindow.getBounds();
+    const bounds = !ofWin.externalWindow ? browserWindow.getBounds() : ofWin.externalWindow.getBounds();
     const delta = isWin10 && browserWindow._options.frame
         ? framedOffset
         : zeroDelta;

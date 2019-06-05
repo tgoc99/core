@@ -472,7 +472,7 @@ export interface NativeWindowInfo extends RawNativeWindowInfo {
 
 export type GroupWindow = (ExternalWindow | OpenFinWindow) & {
     isExternalWindow?: boolean;
-    externalWindow?: ExternalWindow;
+    externalWindow?: ExternalWindow|BrowserWindow;
 };
 
 export interface GroupWindowIdentity extends Identity {

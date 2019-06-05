@@ -241,10 +241,10 @@ export class Rectangle {
 
     public delta = (rect: RectangleBase): RectangleBase => {
         return {
-            x: rect.x - this.x,
-            y: rect.y - this.y,
-            width: rect.width - this.width,
-            height: rect.height - this.height
+            x: Math.round(rect.x - this.x),
+            y: Math.round(rect.y - this.y),
+            width: Math.round(rect.width - this.width),
+            height: Math.round(rect.height - this.height)
         };
     }
 
