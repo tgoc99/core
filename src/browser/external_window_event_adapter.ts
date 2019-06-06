@@ -72,9 +72,10 @@ export default class ExternalWindowEventAdapter {
                 this._leftButtonDown = true;
                 // get current cursor position
                 // todo: may need to convert screen to dpi
-                this._cursorStart = { x, y };
+                const scaleFactor = MonitorInfo.getInfo().deviceScaleFactor;
+                this._cursorStart = isWin32 ? { x: x * scaleFactor, y: y * scaleFactor } : { x, y };
                 // save the disabled frame's previous cursor position
-                this._cursorPrev = { x, y };
+                this._cursorPrev = isWin32 ? { x: x * scaleFactor, y: y * scaleFactor } : { x, y };
                 // save the disabled frame's initial bounds
                 this._boundsStart = bounds;
             }
@@ -167,14 +168,13 @@ export default class ExternalWindowEventAdapter {
         this._sizingEvent = route.externalWindow('sizing', uuid, name);
         this._sizingListener = (bounds) => {
             if (this._leftButtonDown) {
-                // check if the position has also changed by checking whether the origins match up
-                if (this._changeType !== 2) {
-                    const xDelta = bounds.x !== this._boundsStart.x;
-                    const yDelta = bounds.y !== this._boundsStart.y;
-
-                    this._changeType = xDelta || yDelta ? 2 : 1;
+                this._changeType = 1;
+                const scaleFactor = MonitorInfo.getInfo().deviceScaleFactor;
+                if (isWin32) {
+                    Object.keys(bounds).map((key: keyof Shapes.Bounds) => {
+                        bounds[key] = bounds[key] * scaleFactor;
+                    });
                 }
-
                 browserWindow.emit('disabled-frame-bounds-changing', {}, bounds, this._changeType);
             }
         };

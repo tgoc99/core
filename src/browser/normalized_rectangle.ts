@@ -1,10 +1,16 @@
+import { app as electronApp } from 'electron';
 import { Rectangle, RectangleBase } from './rectangle';
 import { GroupWindow } from '../shapes';
 import { System } from './api/system';
 import { Move } from './disabled_frame_group_tracker';
 
+
 const osName: string = System.getHostSpecs().name;
 const isWin10 = /Windows 10/.test(osName);
+let MonitorInfo: any;
+electronApp.on('ready', () => {
+    MonitorInfo = require('./monitor_info.js');
+});
 export function negate(delta: RectangleBase) {
     return {
         x: -delta.x,
@@ -13,15 +19,16 @@ export function negate(delta: RectangleBase) {
         width: -delta.width
     };
 }
-const framedOffset: Readonly<RectangleBase> = {
-    x: 7,
-    y: 0,
-    height: -7,
-    width: -14
-};
 export const zeroDelta: Readonly<RectangleBase> = {x: 0, y: 0, height: 0, width: 0 };
 export function moveFromOpenFinWindow(ofWin: GroupWindow): Move {
+    const scaleFactor = MonitorInfo.getInfo().deviceScaleFactor;
     const browserWindow = ofWin.browserWindow;
+    const framedOffset: RectangleBase = {
+        x: Math.floor(7 * scaleFactor),
+        y: Math.round(0 * scaleFactor),
+        height: Math.ceil(-7 * scaleFactor),
+        width: Math.ceil(-14 * scaleFactor)
+    };
     // Use the external window to read scaled bounds for grouping purposes
     const bounds = !ofWin.externalWindow ? browserWindow.getBounds() : ofWin.externalWindow.getBounds();
     const delta = isWin10 && browserWindow._options.frame

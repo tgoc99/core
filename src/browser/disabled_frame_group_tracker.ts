@@ -44,12 +44,13 @@ async function raiseEvent(groupWindow: GroupWindow, topic: string, payload: Obje
     const { uuid, name, isProxy, isExternalWindow } = groupWindow;
     const identity = { uuid, name };
     const eventName = isExternalWindow ? route.externalWindow(topic, uuid, name) : route.window(topic, uuid, name);
+    const type = isExternalWindow ? 'external-window' : 'window';
 
     const eventArgs = {
         ...payload,
         ...identity,
         topic,
-        type: 'window'
+        type
     };
     if (isProxy) {
         const rt = await getRuntimeProxyWindow(identity);
