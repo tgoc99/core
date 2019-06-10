@@ -9,7 +9,7 @@ const osName: string = System.getHostSpecs().name;
 const isWin10 = /Windows 10/.test(osName);
 let MonitorInfo: any;
 electronApp.on('ready', () => {
-    MonitorInfo = require('./monitor_info.js');
+    MonitorInfo = require('./monitor_info.js').default;
 });
 export function negate(delta: RectangleBase) {
     return {
