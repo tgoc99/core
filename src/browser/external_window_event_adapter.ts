@@ -6,7 +6,7 @@ import route from '../common/route';
 let MonitorInfo: any;
 const isWin32 = process.platform === 'win32';
 electronApp.on('ready', () => {
-    MonitorInfo = require('./monitor_info.js');
+    MonitorInfo = require('./monitor_info.js').default;
 });
 
 interface BoundsChangeEventData extends Shapes.CoordinatesXY {
