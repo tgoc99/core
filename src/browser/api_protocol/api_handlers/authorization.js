@@ -22,7 +22,7 @@ const AUTH_TYPE = {
 };
 
 var pendingAuthentications = new Map(),
-    electronApp = require('app'),
+    electronApp = require('electron').app,
     authenticationApiMap = {
         'request-external-authorization': onRequestExternalAuth,
         'request-authorization': onRequestAuthorization,
@@ -203,7 +203,9 @@ export const init = function() {
         externalConnection = ExternalApplication.getExternalConnectionById(id);
         if (externalConnection) {
             ExternalApplication.removeExternalConnection(externalConnection);
-            releaseUuid(externalConnection.uuid);
+            if (!externalConnection.runtimeClient) {
+                releaseUuid(externalConnection.uuid);
+            }
             ofEvents.emit(route('externalconn', 'closed'), externalConnection);
         }
 

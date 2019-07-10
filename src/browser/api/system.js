@@ -6,7 +6,7 @@ const electronApp = electron.app;
 const electronBrowserWindow = electron.BrowserWindow;
 const session = electron.session;
 const shell = electron.shell;
-const { crashReporter, idleState } = electron;
+const { crashReporter, IdleState } = electron;
 
 // npm modules
 const path = require('path');
@@ -28,7 +28,7 @@ import { downloadScripts, loadScripts } from '../preload_scripts';
 import { fetchReadFile } from '../cached_resource_fetcher';
 import { createChromiumSocket, authenticateChromiumSocket } from '../transports/chromium_socket';
 import { authenticateFetch, clearCacheInvoked } from '../cached_resource_fetcher';
-import { extendNativeWindowInfo } from '../utils';
+import { getNativeWindowInfoLite } from '../utils';
 import { isValidExternalWindow } from './external_window';
 
 const defaultProc = {
@@ -288,7 +288,7 @@ export const System = {
         return uuid ? { uuid } : null;
     },
     getHostSpecs: function() {
-        let state = new idleState();
+        let state = new IdleState();
         const theme = (process.platform === 'win32') ? { aeroGlassEnabled: electronApp.isAeroGlassEnabled() } : {};
         return Object.assign({
             cpus: os.cpus(),
@@ -706,8 +706,8 @@ export const System = {
         const externalWindows = [];
 
         allNativeWindows.forEach(e => {
-            const externalWindow = extendNativeWindowInfo(e);
-            const isValid = isValidExternalWindow(externalWindow);
+            const externalWindow = getNativeWindowInfoLite(e);
+            const isValid = isValidExternalWindow(e);
 
             if (isValid) {
                 externalWindows.push(externalWindow);
