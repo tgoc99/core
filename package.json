@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "grunt build-pac",
+    "build-quick": "grunt build-quick -f",
     "deploy": "grunt deploy",
     "postinstall": "grunt",
     "pretest": "grunt babel && grunt ts",
@@ -61,9 +62,11 @@
     "wrench": "^1.5.9"
   },
   "dependencies": {
+    "g": "^2.0.1",
     "minimist": "^1.2.0",
     "options": "0.0.6",
     "rxjs": "^5.5.12",
+    "tsc": "^1.20150623.0",
     "ultron": "^1.0.2",
     "underscore": "^1.8.3",
     "ws": "1.1.1"

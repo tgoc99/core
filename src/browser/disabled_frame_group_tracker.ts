@@ -125,6 +125,19 @@ function getInitialPositions(win: GroupWindow) {
     return WindowGroups.getGroup(win.groupUuid).map(moveFromOpenFinWindow);
 }
 
+function handleTabResize(win: GroupWindow, moves: Move[]) {
+    if (win.browserWindow._options.isTabHat) {
+        // handleResizeOnly does not always have the expected results... so need to get the delta again
+        // DOES MOCVES 0 WWORK HEREREE????? OR NEED TO GIVE LEADER RECT???
+        const delta = getLeaderDelta(win, moves[0].rect);
+        if (delta.height) {
+            const undoResizeDelta = { ...zeroDelta, height: -delta.height };
+            return handleResizeOnly(win, undoResizeDelta, moves);
+        }
+    }
+    return moves;
+}
+
 function generateWindowMoves(win: GroupWindow, rawBounds: RectangleBase, changeType: ChangeType): Move[] {
     const initialPositions: Move[] = getInitialPositions(win);
     let moves: Move[];
@@ -135,6 +148,7 @@ function generateWindowMoves(win: GroupWindow, rawBounds: RectangleBase, changeT
             break;
         case ChangeType.SIZE:
             moves = handleResizeOnly(win, delta);
+            moves = handleTabResize(win, moves);
             break;
         case ChangeType.POSITION_AND_SIZE:
             const resized = (delta.width || delta.height);
@@ -144,6 +158,7 @@ function generateWindowMoves(win: GroupWindow, rawBounds: RectangleBase, changeT
             if (resized) {
                 const resizeDelta = {x: delta.x - xShift, y: delta.y - yShift, width: delta.width, height: delta.height};
                 moves = handleResizeOnly(win, resizeDelta);
+                moves = handleTabResize(win, moves);
             }
             if (moved) {
                 const shift = { x: xShift, y: yShift, width: 0, height: 0 };
@@ -157,11 +172,12 @@ function generateWindowMoves(win: GroupWindow, rawBounds: RectangleBase, changeT
     return moves;
 }
 
-function handleResizeOnly(win: GroupWindow, delta: RectangleBase) {
-    const initialPositions = getInitialPositions(win);
+function handleResizeOnly(win: GroupWindow, delta: RectangleBase, initialPositions?: Move[]) {
+    initialPositions = initialPositions || getInitialPositions(win);
     const rects = initialPositions.map(x => x.rect);
     const leaderRectIndex = initialPositions.map(x => x.ofWin).indexOf(win);
     const start = rects[leaderRectIndex];
+
     const iterMoves = Rectangle.PROPAGATE_MOVE(leaderRectIndex, start, delta, rects);
 
     const allMoves = iterMoves.map((rect, i) => ({
@@ -183,7 +199,7 @@ function handleResizeOnly(win: GroupWindow, delta: RectangleBase) {
     if (yChangedWithoutHeight) {
         return [];
     }
-    return moves;
+    return allMoves;
 }
 
 function handleMoveOnly(delta: RectangleBase, initialPositions: Move[]) {
@@ -221,13 +237,16 @@ export function addWindowToGroup(win: GroupWindow) {
 
     const handleBoundsChanging = (e: any, rawPayloadBounds: RectangleBase, changeType: ChangeType) => {
         try {
+            const clonedB = { ...rawPayloadBounds };
             e.preventDefault();
             if (isWin32) {
                 // Use externalWindow static methods to remove the framed offset for Win10 windows
                 const adjustedBounds: any = (<any>ExternalWindow).removeShadow(win.browserWindow.nativeId, rawPayloadBounds);
                 rawPayloadBounds = Rectangle.CREATE_FROM_BOUNDS(adjustedBounds);
             }
+
             const moves = generateWindowMoves(win, rawPayloadBounds, changeType);
+
             handleBatchedMove(moves, changeType, true);
             // Keep track of which windows have moved in order to emit events
             moves.forEach(({ofWin}) => moved.add(ofWin));

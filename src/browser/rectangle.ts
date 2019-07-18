@@ -77,6 +77,7 @@ export class Rectangle {
         this.width = width;
         this.height = height;
         this.opts = new RectOptionsOpts(opts);
+
     }
 
     get right(): number {
@@ -606,7 +607,7 @@ function propMoveThroughGraph (
     const distances = new Map();
     let movedRef = rects[refVertex];
 
-    if (movedRef.hasIdenticalBounds( cachedBounds)) {
+    if (movedRef.hasIdenticalBounds(cachedBounds)) {
         movedRef = Rectangle.CREATE_FROM_BOUNDS(proposedBounds);
     } else {
         movedRef = movedRef.move(cachedBounds, proposedBounds);
@@ -621,23 +622,24 @@ function propMoveThroughGraph (
 
     const toVisit = [refVertex];
 
-    while (toVisit.length) {
-        const u = toVisit.shift();
-        const e = (<number [][]>edges).filter(([uu]): boolean => uu === u);
+    // If this rect has been moved, need to propagate the move to any touching edges
+    // if(!rects[refVertex].hasIdenticalBounds(movedRef)) {
+        while (toVisit.length) {
+            const u = toVisit.shift();
+            const e = (<number [][]>edges).filter(([uu]): boolean => uu === u);
 
-        e.forEach(([u, v]) => {
-            if (!visited.includes(v)) {
-                if (distances.get(v) === Infinity) {
+            e.forEach(([u, v]) => {
+                if (!visited.includes(v) && distances.get(v) === Infinity) {
                     toVisit.push(v);
                     distances.set(v, distances.get(u) + 1);
                     
-                    propMoveThroughGraph(rects, v, rects[refVertex], movedRef, visited);
+                    const visitedClone = [...visited];
+                    propMoveThroughGraph(rects, v, rects[refVertex], movedRef, visitedClone);
                     visited.push(v);
                 }
-            }
-        });
-    }
-
+            });
+        }
+    // }
     rects[refVertex] = movedRef;
     return rects;
 }

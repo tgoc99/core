@@ -145,6 +145,9 @@ function genWindowKey(identity) {
     that you just set
 */
 let optionSetters = {
+    isTabHat: function(newVal, browserWin) {
+        browserWin._options.isTabHat = newVal;
+    },
     contextMenu: function(newVal, browserWin) {
         // so old API still works
         let contextMenuBool = !!newVal;
@@ -490,6 +493,7 @@ Window.create = function(id, opts) {
         // each window now inherits the main window's base options. this can
         // be made to be the parent's options if that makes more sense...
         baseOpts = coreState.getMainWindowOptions(id) || {};
+        baseOpts.isTabHat = null;
         _options = convertOptions.convertToElectron(Object.assign({}, baseOpts, opts));
         if (!_.has(opts, 'permissions')) {
             delete _options.permissions;

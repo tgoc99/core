@@ -234,6 +234,7 @@ export interface WindowOptions {
     skipTaskbar?: boolean;
     smallWindow?: boolean;
     state?: 'maximized'|'minimized'|'normal';
+    isTabHat?: boolean;
     taskbarIcon?: string;
     taskbarIconGroup?: string;
     title?: string;

@@ -275,6 +275,11 @@ export const convertToElectron = function(options, returnAsString) {
         newOptions.customRequestHeaders = options.customRequestHeaders;
     }
 
+
+    if (options.isTabHat) {
+        newOptions.isTabHat = options.isTabHat;
+    }
+
     // implicitly set the backgroundColor if the window is transparent
     if (newOptions.transparent) {
         newOptions.backgroundColor = TRANSPARENT_WHITE;
