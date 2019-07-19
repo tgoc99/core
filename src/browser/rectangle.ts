@@ -623,7 +623,7 @@ function propMoveThroughGraph (
     const toVisit = [refVertex];
 
     // If this rect has been moved, need to propagate the move to any touching edges
-    // if(!rects[refVertex].hasIdenticalBounds(movedRef)) {
+    if(!rects[refVertex].hasIdenticalBounds(movedRef)) {
         while (toVisit.length) {
             const u = toVisit.shift();
             const e = (<number [][]>edges).filter(([uu]): boolean => uu === u);
@@ -639,7 +639,7 @@ function propMoveThroughGraph (
                 }
             });
         }
-    // }
+    }
     rects[refVertex] = movedRef;
     return rects;
 }
