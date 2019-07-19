@@ -435,6 +435,8 @@ describe('Rectangle', () => {
             assert.deepEqual(propagatedMoves.map(x => x.bounds), rectsFinal.map(x => x.bounds));
             heightChange++;
         }
+    });
+
     it('should propagate a move through the window graph correctly when there are 3 windows and 2 have the same bounds', () => {
         const startRect = Rectangle.CREATE_FROM_BOUNDS({x: 0, y: 100, width: 100, height: 100});
         const endRect = Rectangle.CREATE_FROM_BOUNDS({x: 0, y: 100, width: 100, height: 101});
