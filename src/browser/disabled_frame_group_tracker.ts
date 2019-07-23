@@ -18,7 +18,7 @@ import {
 import { writeToLog } from './log';
 
 const isWin32 = process.platform === 'win32';
-    // Use disabled frame bounds changing events for mac os and for external native windows
+// Use disabled frame bounds changing events for mac os and for external native windows
 const usesDisabledFrameEvents = (win: GroupWindow) => win.isExternalWindow || !isWin32;
 enum ChangeType {
     POSITION = 0,
