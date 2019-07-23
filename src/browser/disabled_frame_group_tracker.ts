@@ -129,9 +129,9 @@ function handleTabResize(win: GroupWindow, moves: Move[]) {
     if (win.browserWindow._options.isTabHat) {
         // handleResizeOnly does not always have the expected results... so need to get the delta again
         // DOES MOVES 0 WWORK HEREREE????? OR NEED TO GIVE LEADER RECT???
-        const move = initialPositions.find(x => x.ofWin === win);
+        const move = moves.find(x => x.ofWin === win);
 
-        const delta = getLeaderDelta(win, moves[0].rect);
+        const delta = getLeaderDelta(win, move.rect);
         if (delta.height) {
             const undoResizeDelta = { ...zeroDelta, height: -delta.height };
             return handleResizeOnly(win, undoResizeDelta, moves);
