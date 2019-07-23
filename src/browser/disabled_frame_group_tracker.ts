@@ -128,7 +128,6 @@ function getInitialPositions(win: GroupWindow) {
 function handleTabResize(win: GroupWindow, moves: Move[]) {
     if (win.browserWindow._options.isTabHat) {
         // handleResizeOnly does not always have the expected results... so need to get the delta again
-        // DOES MOVES 0 WWORK HEREREE????? OR NEED TO GIVE LEADER RECT???
         const move = moves.find(x => x.ofWin === win);
 
         const delta = getLeaderDelta(win, move.rect);
