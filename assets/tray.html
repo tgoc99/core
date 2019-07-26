@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>System Tray</title>
+    <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">    
+    <style>
+        /* The container <div> - needed to position the dropdown content */
+        body {
+            position: relative;
+            display: block;
+            margin: 0px;
+            overflow: hidden;
+            font-family: "Segoe UI"
+        }
+        /* Dropdown Content (Hidden by Default) */
+        .dropdown-content {
+            display: block;
+            position: absolute;
+            background-color: white;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1;
+            padding: 0;
+            margin: 0;
+            width: 100%;
+        }
+        /* Links inside the dropdown */
+        .dropdown-content li {
+            position: relative;
+            color: black;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            cursor: pointer;
+            font-size: 9pt;
+            padding: 0.7em 1.5em;
+            padding-left: 40px;
+        }
+        li.checked:before {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            left: 12px;
+            content:'\2713';
+            display:inline-block;
+            padding:0 6px 0 0;
+        }
+        .dropdown-content li {
+            transition: 0.3s;
+        }
+        /* Change color of dropdown links on hover */
+        .dropdown-content li:hover {
+            background-color: #ebebeb
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <ul id="myDropdown" class="dropdown-content">
+            <li id="about">About</! -->
+            <li id="system-startup">Launch On Startup</li>    
+            <li id="always-on-top">Always On Top</li>    
+            <li id="hide-on-close">Hide On Close</li>    
+            <li id="exit">Exit</li>
+        </ul>
+    </div>
+</body>
+<script type="text/javascript">
+    // TO DO - CAN ONLY USE THIS SYSTEM TRY IF LAUNCHED FROM MANIFEST!
+    // Initialization
+    let app;
+    const init = async () => {
+        const menuWindow = await fin.Window.getCurrent();
+        const { customData: { uuid, options } } = await menuWindow.getOptions();
+        app = await fin.Application.wrap({ uuid });
+        // TODO - make alwaysontop & exit on close app options that persist with window state
+        // const appOptions = await app.getOptions();
+        // set checked for the necessary options
+        // TODO - save user systemstartup options with winbdow state - override app.json on startup
+        await app.getShortcuts(shortcuts => {
+            const action = shortcuts.systemStartup ? 'add' : 'remove';
+            const element = document.getElementById('system-startup');
+            element.classList[action]('checked');
+        });
+        //setup Icon
+        const clickListener = clickInfo => {
+            console.log('in cl');
+            debugger;
+            if(clickInfo.button === 2) {
+                menuWindow.isShowing().then(showing => {
+                    if(!showing) {
+                        menuWindow.showAt(clickInfo.x-180, clickInfo.y-163-5, true);
+                    } else {
+                        menuWindow.hide();
+                    }
+                });    
+            }
+        }
+        app.on('tray-icon-clicked', clickListener);
+        app.setTrayIcon(`https://openfin.co/favicon.ico`);
+        // close system tray if not in focus
+        menuWindow.on('blurred', () => menuWindow.hide());
+    }
+    
+    const updateOption = async (option) => {
+        const currentState = document.getElementById(option).classList.contains('checked');
+        document.getElementById(option).classList.toggle('checked');
+        try {
+            await app.setUserDefinedOptions({ [option]: !currentState });
+        } catch (e) {
+            console.log(e);
+            document.getElementById(option).classList.toggle('checked');
+        }
+    };
+
+    document.getElementById("system-startup").onclick = () => updateOption('system-startup');
+    document.getElementById("always-on-top").onclick = () => updateOption('always-on-top');
+    document.getElementById("hide-on-close").onclick = () => updateOption('hide-on-close');
+    document.getElementById("exit").onclick = () => app.close(true);
+
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+</html>
