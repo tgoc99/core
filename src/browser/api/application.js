@@ -38,6 +38,7 @@ import { deregisterAllRuntimeProxyWindows } from '../window_groups_runtime_proxy
 import { releaseUuid } from '../uuid_availability';
 import { launch } from '../../../js-adapter/src/main';
 import { externalWindows } from './external_window';
+import { createTray } from '../../common/tray';
 
 const subscriptionManager = new SubscriptionManager();
 const TRAY_ICON_KEY = 'tray-icon-events';
@@ -386,6 +387,53 @@ Application.getInfo = function(identity, callback) {
     };
 
     callback(response);
+};
+
+Application.getUserDefinedOptions = function(identity) {
+    const appObj = coreState.getAppObjByUuid(identity.uuid);
+    return appObj && appObj.userDefinedOptions;
+};
+/* jshint ignore:start */
+Application.setUserDefinedOptions = function(identity, options) {
+    const appObj = coreState.getAppObjByUuid(identity.uuid);
+    if (!appObj) {
+        throw new Error('App not found');
+    }
+    const { uuid } = identity;
+    const mainWindowIdentity = { uuid, name: uuid };
+    appObj.userDefinedOptions = appObj.userDefinedOptions || {};
+    const promises = [];
+    for (const option in options) { // jshint ignore:line
+        promises.push(new Promise((resolve, reject) => { // jshint ignore:line
+            const makeCb = (opt) => () => {
+                appObj.userDefinedOptions[opt] = options[opt];
+                resolve();
+            };
+            // fill me in!
+            switch (option) {
+                case 'system-startup':
+                    Application.setShortcuts(identity, { systemStartup: options[option] }, makeCb(option), e => reject(e));
+                    break;
+                case 'always-on-top':
+                    Window.updateOptions(mainWindowIdentity, { alwaysOnTop: options[option] });
+                    Application.getChildWindows(identity).forEach(w => Window.updateOption(w, { alwaysOnTop: options[option] }));
+                    appObj.userDefinedOptions[option] = options[option];
+                    resolve();
+                    break;
+                case 'hide-on-close':
+                    Window.updateOptions(mainWindowIdentity, { hideOnClose: options[option] });
+                    appObj.userDefinedOptions[option] = options[option];
+                    resolve();
+                    break;
+            }
+        }));
+    }
+    return Promise.all(promises);
+};
+/* jshint ignore:end */
+
+Application.createTray = function(identity) {
+    return createTray(identity);
 };
 
 Application.getWindow = function(identity) {

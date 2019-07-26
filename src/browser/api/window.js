@@ -1940,8 +1940,14 @@ function createWindowTearDown(identity, id, browserWindow, _boundsChangedHandler
         return new Promise((resolve, reject) => {
             if (browserWindow._options.saveWindowState) {
                 const zoomLevel = browserWindow.webContents.getZoomLevel();
-                const cachedBounds = _boundsChangedHandler.getCachedBounds();
-                saveBoundsToDisk(identity, cachedBounds, zoomLevel, err => {
+                const bounds = _boundsChangedHandler.getCachedBounds();
+                let userDefinedOptions;
+                if (identity.uuid === identity.name) {
+                    const Application = require('./application.js').Application;
+                    userDefinedOptions = Application.getUserDefinedOptions(identity);
+                }
+                const options = { zoomLevel, bounds, userDefinedOptions };
+                saveBoundsToDisk(identity, options, err => {
                     if (err) {
                         log.writeToLog('info', err);
                     }
@@ -1983,8 +1989,10 @@ function createWindowTearDown(identity, id, browserWindow, _boundsChangedHandler
     };
 }
 
-function saveBoundsToDisk(identity, bounds, zoomLevel, callback) {
+function saveBoundsToDisk(identity, options, callback) {
     getBoundsCacheSafeFileName(identity, cacheFile => {
+        const { zoomLevel, bounds, userDefinedOptions } = options;
+
         const data = {
             'active': 'true',
             'height': bounds.height,
@@ -1993,7 +2001,8 @@ function saveBoundsToDisk(identity, bounds, zoomLevel, callback) {
             'top': bounds.y,
             'name': identity.name,
             'windowState': bounds.windowState,
-            'zoomLevel': zoomLevel
+            zoomLevel,
+            userDefinedOptions
         };
 
         try {
@@ -2462,6 +2471,8 @@ function getElectronBrowserWindow(identity, errDesc) {
 
 function restoreWindowPosition(identity, cb) {
     Window.getBoundsFromDisk(identity, savedBounds => {
+        log.writeToLog('info', '*****' + JSON.stringify(savedBounds));
+
 
         const monitorInfo = System.getMonitorInfo();
 
@@ -2488,6 +2499,12 @@ function restoreWindowPosition(identity, cb) {
         // set zoom level
         const { zoomLevel } = savedBounds;
         Window.setZoomLevel(identity, zoomLevel);
+
+        // set user defined options
+        if (identity.uuid === identity.name && savedBounds.userDefinedOptions) {
+            const Application = require('./application.js').Application;
+            Application.setUserDefinedOptions(identity, savedBounds.userDefinedOptions);
+        }
         cb();
     }, (err) => {
         //We care about errors but lets keep window creation going.

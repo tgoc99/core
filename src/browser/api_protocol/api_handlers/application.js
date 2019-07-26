@@ -35,6 +35,7 @@ let successAck = {
 export const applicationApiMap = {
     'close-application': closeApplication,
     'create-application': createApplication,
+    'create-tray': createTray,
     'create-child-window': createChildWindow,
     'deregister-external-window': deregisterExternalWindow,
     'destroy-application': destroyApplication,
@@ -45,7 +46,7 @@ export const applicationApiMap = {
     'get-child-windows': getChildWindows,
     'get-info': getInfo,
     'get-parent-application': getParentApplication,
-    'get-shortcuts': { apiFunc: getShortcuts, apiPath: '.getShortcuts' },
+    'get-shortcuts': getShortcuts,
     'get-tray-icon-info': getTrayIconInfo,
     'is-application-running': isApplicationRunning,
     'notify-on-app-connected': notifyOnAppConnected,
@@ -59,8 +60,9 @@ export const applicationApiMap = {
     'run-application': runApplication,
     'send-application-log': sendApplicationLog,
     'set-app-log-username': setAppLogUsername,
-    'set-shortcuts': { apiFunc: setShortcuts, apiPath: '.setShortcuts' },
+    'set-shortcuts': setShortcuts,
     'set-tray-icon': setTrayIcon,
+    'set-user-defined-options': setUserDefinedOptions,
     'set-application-zoom-level': setApplicationZoomLevel,
     'terminate-application': terminateApplication,
     'wait-for-hung-application': waitForHungApplication
@@ -276,6 +278,24 @@ function setShortcuts(identity, message, ack, nack) {
         dataAck.data = response;
         ack(dataAck);
     }, nack);
+}
+
+function createTray(identity, message, ack, nack) {
+    const payload = message.payload;
+    const appIdentity = apiProtocolBase.getTargetApplicationIdentity(payload);
+
+    Application.createTray(appIdentity, payload.data)
+        .then(() => ack(successAck))
+        .catch(nack);
+}
+
+function setUserDefinedOptions(identity, message, ack, nack) {
+    const payload = message.payload;
+    const appIdentity = apiProtocolBase.getTargetApplicationIdentity(payload);
+
+    Application.setUserDefinedOptions(appIdentity, payload.data)
+        .then(() => ack(successAck))
+        .catch(nack);
 }
 
 function setAppLogUsername(identity, message, ack) {
