@@ -7,7 +7,7 @@ import { Identity } from '../browser/api_protocol/transport_strategy/api_transpo
 import { rejects } from 'assert';
 
 
-export function createTray(identity: Identity): Promise<void> {
+export function createTray(identity: Identity, iconUrl: string): Promise<void> {
     return new Promise((resolve) => {
 
         // prevent issue with circular dependencies.
@@ -15,6 +15,8 @@ export function createTray(identity: Identity): Promise<void> {
         const { deleteApp } = require('../browser/core_state');
         const { uuid } = identity;
         const trayUuid = `tray-${identity.uuid}`;
+        const height = 163;
+        const width = 180;
 
         try {
             const options = {
@@ -23,8 +25,8 @@ export function createTray(identity: Identity): Promise<void> {
                 name: trayUuid,
                 mainWindowOptions: {
                     icon: `file:///${path.resolve(`${__dirname}/../../assets/error-icon.png`)}`,
-                    defaultHeight: 163, // size increased later to fully fit error message
-                    defaultWidth: 180,
+                    defaultHeight: height, // size increased later to fully fit error message
+                    defaultWidth: width,
                     frame: false,
                     saveWindowState: false,
                     showTaskbarIcon: false,
@@ -36,7 +38,8 @@ export function createTray(identity: Identity): Promise<void> {
                     maximizable: false,
                     nonPersistent: true,
                     customData: {
-                        uuid
+                        uuid,
+                        iconUrl
                     }
                 }
             };

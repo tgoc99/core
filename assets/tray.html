@@ -67,49 +67,58 @@
     </div>
 </body>
 <script type="text/javascript">
-    // TO DO - CAN ONLY USE THIS SYSTEM TRY IF LAUNCHED FROM MANIFEST!
+    // TO DO - CAN ONLY USE THIS SYSTEM TRAY IF LAUNCHED FROM MANIFEST!
     // Initialization
     let app;
     const init = async () => {
         const menuWindow = await fin.Window.getCurrent();
-        const { customData: { uuid, options } } = await menuWindow.getOptions();
+        const { customData: { uuid, options, iconUrl } } = await menuWindow.getOptions();
         app = await fin.Application.wrap({ uuid });
         // TODO - make alwaysontop & exit on close app options that persist with window state
-        // const appOptions = await app.getOptions();
+        const mainWindowOptions = await app.getWindow().then(w => w.getOptions());
         // set checked for the necessary options
-        // TODO - save user systemstartup options with winbdow state - override app.json on startup
-        await app.getShortcuts(shortcuts => {
+        const { alwaysOnTop, hideOnClose } = mainWindowOptions;
+        if (alwaysOnTop) {
+            const element = document.getElementById('always-on-top');
+            element.classList.add('checked');
+        }
+        if (hideOnClose) {
+            const element = document.getElementById('hide-on-close');
+            element.classList.add('checked');
+        }
+        await app.getShortcuts().then(shortcuts => {
             const action = shortcuts.systemStartup ? 'add' : 'remove';
             const element = document.getElementById('system-startup');
             element.classList[action]('checked');
         });
         //setup Icon
+        const menuBounds = await menuWindow.getBounds();
         const clickListener = clickInfo => {
-            console.log('in cl');
-            debugger;
             if(clickInfo.button === 2) {
                 menuWindow.isShowing().then(showing => {
                     if(!showing) {
-                        menuWindow.showAt(clickInfo.x-180, clickInfo.y-163-5, true);
+                        menuWindow.showAt(clickInfo.x-menuBounds.width, clickInfo.y-menuBounds.height-5, true);
                     } else {
                         menuWindow.hide();
                     }
                 });    
             }
         }
+        const trayIconUrl = iconUrl || `https://openfin.co/favicon.ico`;
         app.on('tray-icon-clicked', clickListener);
-        app.setTrayIcon(`https://openfin.co/favicon.ico`);
+        app.setTrayIcon(trayIconUrl);
         // close system tray if not in focus
         menuWindow.on('blurred', () => menuWindow.hide());
     }
     
     const updateOption = async (option) => {
+        console.log('update option called: ' + option);
         const currentState = document.getElementById(option).classList.contains('checked');
         document.getElementById(option).classList.toggle('checked');
         try {
             await app.setUserDefinedOptions({ [option]: !currentState });
         } catch (e) {
-            console.log(e);
+            console.error('error in update option: ' + e);
             document.getElementById(option).classList.toggle('checked');
         }
     };

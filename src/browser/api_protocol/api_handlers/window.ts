@@ -120,7 +120,8 @@ function setWindowBounds(identity: Identity, message: APIMessage, ack: Acker, na
     const { payload } = message;
     const { top, left, width, height } = payload;
     const {uuid, name} = getTargetWindowIdentity(payload);
-    Window.setBounds({ uuid, name }, left, top, width, height, () => ack(successAck), nack);
+    Window.setBounds({ uuid, name }, left, top, width, height, nack);
+    ack(successAck);
 }
 
 function setWindowPreloadState(identity: Identity, message: APIMessage, ack: Acker): void {

@@ -880,6 +880,7 @@ Window.create = function(id, opts) {
 
         //We want to zip both event sources so that we get a single event only after both windowPositioning and apiInjection occur.
         const subscription = Rx.Observable.zip(apiInjectionObserver, windowPositioningObserver).subscribe((event) => {
+            log.writeToLog('info', '**** got here');
             const constructorCallbackMessage = event[0];
             if (_options.autoShow || _options.toShowOnRun) {
                 if (!browserWindow.isVisible()) {
@@ -1644,7 +1645,7 @@ Window.setAsForeground = function(identity) {
 };
 
 
-Window.setBounds = function(identity, left, top, width, height, callback, errorCallback) {
+Window.setBounds = function(identity, left, top, width, height, errorCallback) {
     const browserWindow = getElectronBrowserWindow(identity, 'set window bounds for');
     const opts = { height, left, top, width };
     if (!browserWindow) {
@@ -1660,7 +1661,6 @@ Window.setBounds = function(identity, left, top, width, height, callback, errorC
 
     if (newBoundsWithinConstraints) {
         NativeWindow.setBounds(browserWindow, opts);
-        callback();
     } else {
         errorCallback(new Error(`Proposed window bounds violate size constraints for uuid: ${identity.uuid} name: ${identity.name}`));
     }
@@ -1828,6 +1828,9 @@ Window.getBoundsFromDisk = function(identity, callback, errorCallback) {
                     errorCallback(err);
                 } else {
                     try {
+                        log.writeToLog('info', '***** callback ' + !!callback);
+                        log.writeToLog('info', '*****  cb data ' + data);
+                        log.writeToLog('info', '*****  cb data parsed ' + JSON.parse(data));
                         callback(JSON.parse(data));
                     } catch (parseErr) {
                         errorCallback(new Error(`Error parsing saved bounds data ${parseErr.message}`));
@@ -1946,6 +1949,7 @@ function createWindowTearDown(identity, id, browserWindow, _boundsChangedHandler
                     const Application = require('./application.js').Application;
                     userDefinedOptions = Application.getUserDefinedOptions(identity);
                 }
+                log.writeToLog('info', '***** udo in hssar ' + JSON.stringify(userDefinedOptions));
                 const options = { zoomLevel, bounds, userDefinedOptions };
                 saveBoundsToDisk(identity, options, err => {
                     if (err) {
@@ -1992,6 +1996,7 @@ function createWindowTearDown(identity, id, browserWindow, _boundsChangedHandler
 function saveBoundsToDisk(identity, options, callback) {
     getBoundsCacheSafeFileName(identity, cacheFile => {
         const { zoomLevel, bounds, userDefinedOptions } = options;
+        log.writeToLog('info', '***** udo in sbtd ' + JSON.stringify(userDefinedOptions));
 
         const data = {
             'active': 'true',
@@ -2471,8 +2476,7 @@ function getElectronBrowserWindow(identity, errDesc) {
 
 function restoreWindowPosition(identity, cb) {
     Window.getBoundsFromDisk(identity, savedBounds => {
-        log.writeToLog('info', '*****' + JSON.stringify(savedBounds));
-
+        log.writeToLog('info', '***** sb in restorewinpos' + JSON.stringify(savedBounds));
 
         const monitorInfo = System.getMonitorInfo();
 

@@ -395,9 +395,11 @@ Application.getUserDefinedOptions = function(identity) {
 };
 /* jshint ignore:start */
 Application.setUserDefinedOptions = function(identity, options) {
+    log.writeToLog('info', '**** in setuserdefinedoptions, options: ' + JSON.stringify(options));
     const appObj = coreState.getAppObjByUuid(identity.uuid);
     if (!appObj) {
-        throw new Error('App not found');
+        log.writeToLog('info', '**** in setuserdefinedoptions, no appobj');
+        // throw new Error('App not found');
     }
     const { uuid } = identity;
     const mainWindowIdentity = { uuid, name: uuid };
@@ -416,7 +418,8 @@ Application.setUserDefinedOptions = function(identity, options) {
                     break;
                 case 'always-on-top':
                     Window.updateOptions(mainWindowIdentity, { alwaysOnTop: options[option] });
-                    Application.getChildWindows(identity).forEach(w => Window.updateOption(w, { alwaysOnTop: options[option] }));
+                    // ONLY THE MAIN WINDOW FOR NOW...
+                    // Application.getChildWindows(identity).forEach(w => Window.updateOption(w, { alwaysOnTop: options[option] }));
                     appObj.userDefinedOptions[option] = options[option];
                     resolve();
                     break;
@@ -432,8 +435,9 @@ Application.setUserDefinedOptions = function(identity, options) {
 };
 /* jshint ignore:end */
 
-Application.createTray = function(identity) {
-    return createTray(identity);
+Application.createTray = function(identity, data) {
+    const iconUrl = data && data.iconUrl;
+    return createTray(identity, iconUrl);
 };
 
 Application.getWindow = function(identity) {
